@@ -22,14 +22,11 @@ def infer_data_path(exchange: str, timeframe: str, pair: str, mode: str) -> Opti
     Supports both legacy flat layout and nested spot/futures layout.
     """
     exch = exchange.lower()
-    if mode == "futures":
-        subdir = "futures"
-        pair_key = pair.replace("/", "_") + "_"
-        suffix = "-futures"
-    else:
-        subdir = ""  # Spot has no subdir
-        pair_key = pair.replace("/", "_")
-        suffix = ""
+    settle = "USDT"  # Assume USDT for Binance futures; adjust if using USDC or others
+    full_pair = f"{pair}:{settle}" if mode == "futures" and ':' not in pair else pair
+    pair_key = full_pair.replace("/", "_").replace(":", "_")
+    suffix = "-futures" if mode == "futures" else ""
+    subdir = "futures" if mode == "futures" else ""
 
     file_base = f"{pair_key}-{timeframe}{suffix}"
     data_dir = ROOT / "user_data" / "data" / exch
@@ -41,7 +38,7 @@ def infer_data_path(exchange: str, timeframe: str, pair: str, mode: str) -> Opti
         nested_dir / f"{file_base}.json.gz",
         flat_dir / f"{file_base}.json",
         flat_dir / f"{file_base}.json.gz",
-        # Add .feather or .parquet if your config uses them
+        # Add .feather or .parquet if your config uses them (check "dataformat_ohlcv" in config.json)
         # nested_dir / f"{file_base}.feather",
     ]
     for c in candidates:
@@ -160,7 +157,8 @@ def main() -> int:
         print("Suggestions:")
         print("- Use timerange download (recommended):")
         tr = f"{earliest_needed.strftime('%Y%m%d')}-{(need_latest).strftime('%Y%m%d')}"
-        pairs_arg = f"--pairs {' '.join(pairs)}"
+        adjusted_pairs = [f"{p}:USDT" if mode == "futures" and ':' not in p else p for p in pairs]
+        pairs_arg = f"--pairs {' '.join(adjusted_pairs)}"
         trading_mode_arg = "--trading-mode futures" if mode == "futures" else ""
         print(f"  docker compose run --rm freqtrade download-data -c /freqtrade/user_data/config.json -t {timeframe} --timerange {tr} {pairs_arg} {trading_mode_arg}")
         print("- Or increase days to cover earliest_need from today (may be large).")
