@@ -4,7 +4,6 @@ services:
     container_name: freqtrade
     restart: unless-stopped
     working_dir: /freqtrade
-    user: "${UID}:${GID}"
     volumes:
       - ./user_data:/freqtrade/user_data
     ports:

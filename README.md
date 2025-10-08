@@ -4,7 +4,6 @@ This repo scaffolds an adaptive RSI + WILLR strategy for Freqtrade with optional
 
 Quickstart
 - Ensure Docker, Docker Compose, and NVIDIA drivers + Container Toolkit are installed for GPU use.
-- (Optional) create `.env` from `.env.example` so the container runs with your UID/GID.
 - Start the bot in dry-run: `docker compose up -d`.
 - Open FreqUI: http://localhost:8080.
 - Edit pairs and API keys in `user_data/config.json` (dry-run is enabled by default).
@@ -20,6 +19,7 @@ Notes
 - Fear & Greed for backtesting: place a CSV at `user_data/data/fear_greed.csv` with columns `date,value` (see `user_data/data/fear_greed.example.csv`). Or run `python scripts/fetch_fear_greed.py` to download history.
 - FreqAI is configured inside `user_data/config.json` under the `freqai` key and enabled by default. Compose passes `--freqaimodel PyTorchRegressor`.
 - Logs are sent to stdout/stderr; use `docker compose logs -f` instead of a file path to avoid permission issues on bind mounts.
+- If you see permission errors writing under `user_data/`, run: `scripts/fix_perms.sh` to set ownership to container user (1000:1000).
 - This is a starting point; use Freqtrade backtesting/hyperopt to calibrate periods and thresholds.
 
 Disclaimer: For educational use only. Not financial advice.
