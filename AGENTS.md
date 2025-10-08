@@ -6,7 +6,7 @@ This repository hosts a Freqtrade-based crypto bot with optional FreqAI integrat
 - `docker-compose.yml` – Runs Freqtrade (GPU-ready via NVIDIA Container Toolkit).
 - `user_data/config.json` – Bot configuration (pairs, exchange, web UI, dry-run).
 - `user_data/strategies/MyFreqAIStrategy.py` – Main strategy: RSI + WILLR + ADX, sentiment, Fear & Greed.
-- `user_data/freqai_config.json` – Sample FreqAI settings (optional; adjust to your FreqAI version).
+-- FreqAI is configured under the `freqai` key in `user_data/config.json`.
 - `user_data/requirements.txt` – Extra Python deps for strategies (installed in container as needed).
 - `desgin_spec` – System design notes and rationale.
 
@@ -37,4 +37,3 @@ This repository hosts a Freqtrade-based crypto bot with optional FreqAI integrat
 - Do not commit API keys or secrets; keep `dry_run` true until validated.
 - Large data/logs/DB files are gitignored; use Git LFS for binaries if needed.
 - Respect API rate limits; cache external signals; degrade gracefully when offline.
-
