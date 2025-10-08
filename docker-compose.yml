@@ -12,7 +12,7 @@ services:
       - "8080:8080"
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
-    # Prefer device_requests for Compose; deploy.devices for Swarm/compat
+    # GPU request (Compose accepts this and ignores in non-Swarm; safe to keep)
     deploy:
       resources:
         reservations:
@@ -20,10 +20,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    device_requests:
-      - driver: nvidia
-        count: -1
-        capabilities: [gpu]
     command: >
       trade
       --logfile /freqtrade/user_data/logs/freqtrade.log
