@@ -79,14 +79,15 @@ run find . -type d -name __pycache__ -prune -exec rm -rf {} +
 run rm -rf .pytest_cache .mypy_cache || true
 run find . -type f -name '*.pyc' -delete
 
-# Optional: remove downloaded data but keep example CSVs
+# Optional: remove downloaded data but keep example CSVs (top-level)
 if $ALL; then
   if [[ -d user_data/data ]]; then
-    shopt -s nullglob
-    shopt -s extglob
-    run bash -lc "rm -rf user_data/data/!(*.example.csv)"
+    # Remove everything directly under user_data/data except *.example.csv
+    # Avoid shell globs; rely on find for portability (works with sudo too)
+    run find user_data/data -mindepth 1 -maxdepth 1 ! -name '*.example.csv' -exec rm -rf {} +
+  else
+    echo "user_data/data not found; nothing to remove under data/."
   fi
 fi
 
 echo "Cleanup complete."
-
