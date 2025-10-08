@@ -14,4 +14,4 @@ docker compose run --rm freqtrade download-data \
   -c /freqtrade/user_data/config.json \
   -t "${TIMEFRAME}" \
   --days "${DAYS}" \
-  $(for p in ${PAIRS}; do echo -n "-p ${p} "; done)
+  --pairs ${PAIRS}
