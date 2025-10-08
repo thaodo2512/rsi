@@ -18,7 +18,7 @@ Key Files
 Notes
 - Sentiment and Fear & Greed fetch gracefully degrade to neutral if unavailable.
 - Fear & Greed for backtesting: place a CSV at `user_data/data/fear_greed.csv` with columns `date,value` (see `user_data/data/fear_greed.example.csv`). Or run `python scripts/fetch_fear_greed.py` to download history.
-- FreqAI is configured inside `user_data/config.json` under the `freqai` key and enabled by default. Compose passes `--freqaimodel SklearnRegressor` for broad compatibility. You can switch models in `docker-compose.yml` if desired.
+- FreqAI is configured inside `user_data/config.json` under the `freqai` key and enabled by default. Compose passes `--freqaimodel LightGBMRegressor` (dependency preinstalled in our image). You can switch models in `docker-compose.yml` if desired.
 - Logs are sent to stdout/stderr; use `docker compose logs -f` instead of a file path to avoid permission issues on bind mounts.
 - If you see permission errors writing under `user_data/`, run: `scripts/fix_perms.sh` to set ownership to container user (1000:1000).
 - This is a starting point; use Freqtrade backtesting/hyperopt to calibrate periods and thresholds.
