@@ -23,4 +23,9 @@ Notes
 - If you see permission errors writing under `user_data/`, run: `scripts/fix_perms.sh` to set ownership to container user (1000:1000).
 - This is a starting point; use Freqtrade backtesting/hyperopt to calibrate periods and thresholds.
 
+Backtesting
+- Download enough data (train_period_days + backtest window), e.g.: `./scripts/download.sh 5m "BTC/USDT ETH/USDT" 420`
+- Run backtest over a date range: `./scripts/backtest.sh 2023-01-01 2023-12-31`
+- View results in console output and `user_data/backtest_results/` (if generated)
+
 Disclaimer: For educational use only. Not financial advice.
