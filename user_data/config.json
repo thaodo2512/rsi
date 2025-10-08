@@ -57,6 +57,12 @@
     "live_retrain_hours": 168,
     "fit_live_predictions_candles": 300,
     "purge_old_models": 2,
+    "data_split_parameters": {
+      "test_size": 0.25,
+      "shuffle_after_split": false,
+      "reverse_train_test_order": false,
+      "buffer_train_data_candles": 0
+    },
     "feature_parameters": {
       "include_timeframes": ["5m"],
       "include_corr_pairlist": ["BTC/USDT", "ETH/USDT"],
