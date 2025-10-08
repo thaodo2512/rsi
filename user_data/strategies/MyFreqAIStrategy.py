@@ -5,7 +5,12 @@ import logging
 import numpy as np
 import pandas as pd
 
-from freqtrade.strategy import IStrategy, IntParameter, DecimalParameter, CategoricalParameter
+from freqtrade.strategy import (
+    IStrategy,
+    IntParameter,
+    DecimalParameter,
+)
+from freqtrade.enums import RunMode
 
 try:
     import talib.abstract as ta
@@ -17,6 +22,7 @@ try:
 except Exception:
     SentimentIntensityAnalyzer = None  # type: ignore
 
+import os
 import requests
 
 
@@ -61,6 +67,7 @@ class MyFreqAIStrategy(IStrategy):
     rsi_period = IntParameter(9, 21, default=14, space="buy")
     willr_period = IntParameter(10, 21, default=14, space="buy")
     adx_min = IntParameter(20, 35, default=25, space="buy")
+    sentiment_floor = DecimalParameter(0.0, 1.0, default=0.0, decimals=2, space="buy")
 
     def informative_pairs(self):
         return []
@@ -70,6 +77,11 @@ class MyFreqAIStrategy(IStrategy):
         """Add sentiment features using VADER when available. Fallback to neutral.
         This is a lightweight placeholder fetching stubbed texts – replace with real API calls.
         """
+        # Disable network during backtesting/hyperopt to keep runs reproducible
+        if self._is_historic_run():
+            dataframe["sentiment_compound"] = 0.0
+            dataframe["sentiment_normalized"] = 0.5
+            return dataframe
         try:
             analyzer = SentimentIntensityAnalyzer() if SentimentIntensityAnalyzer else None
         except Exception:
@@ -96,14 +108,40 @@ class MyFreqAIStrategy(IStrategy):
         return dataframe
 
     def add_fear_greed(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        """Fetch CNN/Alternative.me Fear & Greed Index, fallback to 0.5 neutral."""
-        fg_value = 0.5
+        """Attach Fear & Greed Index.
+        Priority: use historical CSV if present -> live API (non-historic only) -> neutral 0.5.
+        """
+        # Try historical CSV merge first (reproducible backtests)
         try:
-            resp = requests.get("https://api.alternative.me/fng/?limit=1", timeout=5)
-            if resp.ok:
-                fg_value = int(resp.json()["data"][0]["value"]) / 100.0
-        except Exception as e:
-            logger.info("Fear&Greed fetch failed, using neutral 0.5: %s", e)
+            fg_path = os.path.join("/freqtrade", "user_data", "data", "fear_greed.csv")
+            if os.path.exists(fg_path):
+                fg = pd.read_csv(fg_path)
+                # Expect columns: date (YYYY-MM-DD), value (0..100)
+                if {"date", "value"}.issubset(set(fg.columns)) and "date" in dataframe.columns:
+                    fg["date"] = pd.to_datetime(fg["date"]).dt.date
+                    left = dataframe.copy()
+                    left["_date_only"] = pd.to_datetime(left["date"]).dt.date
+                    fg["fear_greed"] = fg["value"].astype(float) / 100.0
+                    merged = left.merge(
+                        fg[["date", "fear_greed"]],
+                        left_on="_date_only",
+                        right_on="date",
+                        how="left",
+                    )
+                    dataframe["fear_greed"] = merged["fear_greed"].fillna(0.5).values
+                    return dataframe
+        except Exception as e:  # pragma: no cover
+            logger.warning("Failed to merge historical Fear&Greed: %s", e)
+
+        # Live fetch only when not backtesting/hyperopting
+        fg_value = 0.5
+        if not self._is_historic_run():
+            try:
+                resp = requests.get("https://api.alternative.me/fng/?limit=1", timeout=5)
+                if resp.ok:
+                    fg_value = int(resp.json()["data"][0]["value"]) / 100.0
+            except Exception as e:
+                logger.warning("Fear&Greed fetch failed, using neutral 0.5: %s", e)
 
         dataframe["fear_greed"] = fg_value
         return dataframe
@@ -116,6 +154,7 @@ class MyFreqAIStrategy(IStrategy):
             dataframe["rsi"] = pd.Series(np.nan, index=dataframe.index)
             dataframe["willr"] = pd.Series(np.nan, index=dataframe.index)
             dataframe["adx"] = pd.Series(np.nan, index=dataframe.index)
+            logger.warning("TA-Lib not available: indicators set to NaN; no trades will trigger.")
         else:
             dataframe["rsi"] = ta.RSI(dataframe, timeperiod=int(self.rsi_period.value))
             dataframe["willr"] = ta.WILLR(dataframe, timeperiod=int(self.willr_period.value))
@@ -125,21 +164,40 @@ class MyFreqAIStrategy(IStrategy):
         dataframe = self.add_sentiment_features(dataframe, metadata)
         dataframe = self.add_fear_greed(dataframe)
 
+        # Volume rolling mean (basic filter)
+        if "volume" in dataframe.columns:
+            dataframe["vol_sma50"] = dataframe["volume"].rolling(50).mean()
+
         return dataframe
 
     def populate_entry_trend(self, dataframe: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
         dataframe.loc[:, "enter_long"] = 0
 
-        dataframe.loc[
-            (
-                (dataframe["rsi"] < 30)
-                & (dataframe["willr"] < -80)
-                & (dataframe["adx"] > int(self.adx_min.value))
-            ),
-            ["enter_long"],
-        ] = 1
+        cond = (
+            (dataframe["rsi"] < 30)
+            & (dataframe["willr"] < -80)
+            & (dataframe["adx"] > int(self.adx_min.value))
+        )
+
+        # Optional volume filter when available
+        if "vol_sma50" in dataframe.columns:
+            cond &= dataframe["volume"] > dataframe["vol_sma50"].fillna(0)
+
+        # Optional sentiment floor if provided via hyperopt/config (default 0.0 = disabled)
+        if "sentiment_normalized" in dataframe.columns and float(self.sentiment_floor.value) > 0.0:
+            cond &= dataframe["sentiment_normalized"] >= float(self.sentiment_floor.value)
+
+        dataframe.loc[cond, ["enter_long"]] = 1
 
         return dataframe
+
+    # ---------- Helpers ----------
+    def _is_historic_run(self) -> bool:
+        """True for backtesting/hyperopt to ensure reproducibility (no live APIs)."""
+        try:
+            return bool(self.dp and self.dp.runmode in {RunMode.BACKTEST, RunMode.HYPEROPT})
+        except Exception:
+            return False
 
     def populate_exit_trend(self, dataframe: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
         dataframe.loc[:, "exit_long"] = 0
