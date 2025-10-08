@@ -1,6 +1,7 @@
 services:
   freqtrade:
-    image: freqtradeorg/freqtrade:stable
+    build: .
+    image: rsi-freqtrade:local
     container_name: freqtrade
     restart: unless-stopped
     working_dir: /freqtrade

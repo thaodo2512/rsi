@@ -3,10 +3,11 @@
 This repo scaffolds an adaptive RSI + WILLR strategy for Freqtrade with optional FreqAI and GPU acceleration.
 
 Quickstart
-- Ensure Docker, Docker Compose, and NVIDIA drivers + Container Toolkit are installed for GPU use.
-- Start the bot in dry-run: `docker compose up -d`.
-- Open FreqUI: http://localhost:8080.
-- Edit pairs and API keys in `user_data/config.json` (dry-run is enabled by default).
+- Ensure Docker and Docker Compose are installed. For GPU usage, install NVIDIA drivers + Container Toolkit.
+- First build (installs FreqAI deps like datasieve/torch): `docker compose build`
+- Start the bot in dry-run: `docker compose up -d`
+- Open FreqUI: http://localhost:8080
+- Edit pairs and API keys in `user_data/config.json` (dry-run is enabled by default)
 
 Key Files
 - `docker-compose.yml` – Freqtrade service with optional NVIDIA GPU.
