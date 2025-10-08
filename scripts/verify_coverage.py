@@ -17,7 +17,7 @@ def load_config(path: Path) -> dict:
         return json.load(f)
 
 
-def infer_data_path(exchange: str, timeframe: str, pair: str) -> Optional[Path]:
+def infer_data_path(exchange: str, timeframe: str, pair: str, mode: str) -> Optional[Path]:
     """Return path to OHLCV file for a pair/timeframe.
     Supports both legacy flat layout and nested spot/timeframe layout.
     """
@@ -25,7 +25,8 @@ def infer_data_path(exchange: str, timeframe: str, pair: str) -> Optional[Path]:
     pair_key = pair.replace("/", "_")
 
     # New-style nested path
-    nested = ROOT / "user_data" / "data" / exch / "spot" / timeframe
+    # mode can be 'spot' or 'futures' (from config.trading_mode)
+    nested = ROOT / "user_data" / "data" / exch / mode / timeframe
     # Legacy flat path
     flat = ROOT / "user_data" / "data" / exch
 
@@ -111,6 +112,7 @@ def main() -> int:
     cfg = load_config(CONFIG)
     timeframe = args.timeframe or cfg.get("timeframe") or "5m"
     exch = (cfg.get("exchange", {}).get("name") or "binance").lower()
+    mode = (cfg.get("trading_mode") or "spot").lower()
     train_days = int(cfg.get("freqai", {}).get("train_period_days", 365))
     pairs = args.pairs.split() if args.pairs else cfg.get("exchange", {}).get("pair_whitelist", [])
 
@@ -124,9 +126,9 @@ def main() -> int:
 
     ok = True
     for pair in pairs:
-        path = infer_data_path(exch, timeframe, pair)
+        path = infer_data_path(exch, timeframe, pair, mode)
         if not path:
-            print(f"[MISSING] {pair}: no file found under user_data/data/{exch}/(spot/{timeframe}|.)")
+            print(f"[MISSING] {pair}: no file found under user_data/data/{exch}/({mode}/{timeframe}|.)")
             ok = False
             continue
         rng = read_ts_range(path)

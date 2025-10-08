@@ -24,8 +24,12 @@ Notes
 - This is a starting point; use Freqtrade backtesting/hyperopt to calibrate periods and thresholds.
 
 Backtesting
-- Download enough data (train_period_days + backtest window), e.g.: `./scripts/download.sh 5m "BTC/USDT ETH/USDT" 420`
-- Run backtest over a date range: `./scripts/backtest.sh 2023-01-01 2023-12-31`
+- Download enough data (train_period_days + backtest window). With futures now enabled in `user_data/config.json`, data goes under `.../futures/...`:
+  - By days: `./scripts/download.sh 5m "BTC/USDT ETH/USDT" 420`
+  - Or by timerange: `docker compose run --rm freqtrade download-data -c /freqtrade/user_data/config.json -t 5m --timerange 20240101-20251008 -p BTC/USDT -p ETH/USDT`
+- Verify coverage against FreqAI warmup and your window:
+  - `python scripts/verify_coverage.py --start 2025-08-01 --end 2025-10-08`
+- Run backtest over a date range: `./scripts/backtest.sh 2025-08-01 2025-10-08`
 - View results in console output and `user_data/backtest_results/` (if generated)
 
 Disclaimer: For educational use only. Not financial advice.

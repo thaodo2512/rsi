@@ -4,6 +4,7 @@
   "stake_amount": "unlimited",
   "fiat_display_currency": "USD",
   "dry_run": true,
+  "trading_mode": "futures",
   "timeframe": "5m",
   "timeframe_ms": 300000,
   "disable_dataframe_checks": false,
