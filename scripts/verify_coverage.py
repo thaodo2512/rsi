@@ -19,22 +19,30 @@ def load_config(path: Path) -> dict:
 
 def infer_data_path(exchange: str, timeframe: str, pair: str, mode: str) -> Optional[Path]:
     """Return path to OHLCV file for a pair/timeframe.
-    Supports both legacy flat layout and nested spot/timeframe layout.
+    Supports both legacy flat layout and nested spot/futures layout.
     """
     exch = exchange.lower()
-    pair_key = pair.replace("/", "_")
+    if mode == "futures":
+        subdir = "futures"
+        pair_key = pair.replace("/", "_") + "_"
+        suffix = "-futures"
+    else:
+        subdir = ""  # Spot has no subdir
+        pair_key = pair.replace("/", "_")
+        suffix = ""
 
-    # New-style nested path
-    # mode can be 'spot' or 'futures' (from config.trading_mode)
-    nested = ROOT / "user_data" / "data" / exch / mode / timeframe
-    # Legacy flat path
-    flat = ROOT / "user_data" / "data" / exch
+    file_base = f"{pair_key}-{timeframe}{suffix}"
+    data_dir = ROOT / "user_data" / "data" / exch
+    nested_dir = data_dir / subdir if subdir else data_dir
+    flat_dir = data_dir  # Legacy flat is directly in data/{exch}
 
     candidates = [
-        nested / f"{pair_key}-{timeframe}.json",
-        nested / f"{pair_key}-{timeframe}.json.gz",
-        flat / f"{pair_key}-{timeframe}.json",
-        flat / f"{pair_key}-{timeframe}.json.gz",
+        nested_dir / f"{file_base}.json",
+        nested_dir / f"{file_base}.json.gz",
+        flat_dir / f"{file_base}.json",
+        flat_dir / f"{file_base}.json.gz",
+        # Add .feather or .parquet if your config uses them
+        # nested_dir / f"{file_base}.feather",
     ]
     for c in candidates:
         if c.exists():
@@ -119,16 +127,17 @@ def main() -> int:
     start = parse_date(args.start)
     end = parse_date(args.end)
     earliest_needed = start - dt.timedelta(days=train_days)
+    need_latest = end + dt.timedelta(days=1)  # Cover full end day
 
     print(f"Config: timeframe={timeframe}, exchange={exch}, train_period_days={train_days}")
-    print(f"Backtest: start={start.date()} end={end.date()} (need data from <= {earliest_needed.date()})")
+    print(f"Backtest: start={start.date()} end={end.date()} (need data from <= {earliest_needed.date()} to >= {need_latest.date()})")
     print("")
 
     ok = True
     for pair in pairs:
         path = infer_data_path(exch, timeframe, pair, mode)
         if not path:
-            print(f"[MISSING] {pair}: no file found under user_data/data/{exch}/({mode}/{timeframe}|.)")
+            print(f"[MISSING] {pair}: no file found under user_data/data/{exch}/({mode if mode != 'spot' else ''})")
             ok = False
             continue
         rng = read_ts_range(path)
@@ -137,24 +146,23 @@ def main() -> int:
             ok = False
             continue
         first, last = rng
-        need_earliest = earliest_needed
-        need_latest = end + dt.timedelta(days=1)
         status = "OK"
-        if first > need_earliest:
+        if first > earliest_needed:
             status = "INSUFFICIENT_EARLY_DATA"
             ok = False
-        if last < end:
+        if last < need_latest:
             status = "INSUFFICIENT_LATE_DATA"
             ok = False
-        print(f"[{status}] {pair}: file={path.name} first={first} last={last} needed_first<={need_earliest}")
+        print(f"[{status}] {pair}: file={path.name} first={first} last={last} (needed <= {earliest_needed} to >= {need_latest})")
 
     if not ok:
         print("\nOne or more pairs lack sufficient coverage.")
         print("Suggestions:")
         print("- Use timerange download (recommended):")
-        tr = f"{earliest_needed.strftime('%Y%m%d')}-{(end).strftime('%Y%m%d')}"
-        pairs_arg = " ".join(f"-p {p}" for p in pairs)
-        print(f"  docker compose run --rm freqtrade download-data -c /freqtrade/user_data/config.json -t {timeframe} --timerange {tr} {pairs_arg}")
+        tr = f"{earliest_needed.strftime('%Y%m%d')}-{(need_latest).strftime('%Y%m%d')}"
+        pairs_arg = f"--pairs {' '.join(pairs)}"
+        trading_mode_arg = "--trading-mode futures" if mode == "futures" else ""
+        print(f"  docker compose run --rm freqtrade download-data -c /freqtrade/user_data/config.json -t {timeframe} --timerange {tr} {pairs_arg} {trading_mode_arg}")
         print("- Or increase days to cover earliest_need from today (may be large).")
         return 2
 
@@ -164,3 +172,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
