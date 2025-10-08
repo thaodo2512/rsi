@@ -1,0 +1,3 @@
+# Additional Python deps for strategies (installed inside the container if needed)
+vaderSentiment>=3.3.2
+

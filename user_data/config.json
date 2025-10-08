@@ -1,0 +1,52 @@
+{
+  "max_open_trades": 3,
+  "stake_currency": "USDT",
+  "stake_amount": "unlimited",
+  "fiat_display_currency": "USD",
+  "dry_run": true,
+  "timeframe": "5m",
+  "timeframe_ms": 300000,
+  "disable_dataframe_checks": false,
+  "strategy": "MyFreqAIStrategy",
+  "strategy_path": "/freqtrade/user_data/strategies",
+  "dataformat_ohlcv": "json",
+  "pairlists": [
+    { "method": "StaticPairList" }
+  ],
+  "exchange": {
+    "name": "binance",
+    "key": "",
+    "secret": "",
+    "ccxt_config": {
+      "enableRateLimit": true
+    },
+    "ccxt_async_config": {
+      "enableRateLimit": true
+    },
+    "pair_whitelist": ["BTC/USDT", "ETH/USDT"],
+    "pair_blacklist": []
+  },
+  "telegram": { "enabled": false },
+  "webserver": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8080,
+    "username": "",
+    "password": ""
+  },
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "0.0.0.0",
+    "listen_port": 8080,
+    "verbosity": "error",
+    "jwt_secret_key": "change-me",
+    "CORS_origins": [],
+    "username": "",
+    "password": ""
+  },
+  "logger": { "level": "info" },
+  "bot_name": "rsi-freqai-bot",
+  "entry_pricing": { "price_side": "same", "use_order_book": false },
+  "exit_pricing": { "price_side": "same", "use_order_book": false }
+}
+

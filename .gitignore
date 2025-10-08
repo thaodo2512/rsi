@@ -1,0 +1,19 @@
+# Python / Virtualenv
+.venv/
+__pycache__/
+*.pyc
+
+# Freqtrade user data artifacts
+user_data/logs/
+user_data/backtest_results/
+user_data/hyperopt_results/
+user_data/data/
+user_data/trades*.sqlite
+user_data/*.log
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+

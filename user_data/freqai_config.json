@@ -1,0 +1,31 @@
+{
+  "enabled": true,
+  "timeframe": "5m",
+  "train_period_days": 365,
+  "retrain_schedule": "@weekly",
+  "predictors": [
+    "rsi",
+    "willr",
+    "adx",
+    "fear_greed",
+    "sentiment_normalized"
+  ],
+  "target": "close",
+  "model": {
+    "backend": "pytorch",
+    "type": "regression",
+    "architecture": "lstm_transformer",
+    "epochs": 5,
+    "batch_size": 128,
+    "learning_rate": 0.001,
+    "use_gpu": true
+  },
+  "feature_engineering": {
+    "normalize": true,
+    "scale_range": [-1, 1]
+  },
+  "signals": {
+    "enter_prob_threshold": 0.6
+  }
+}
+
