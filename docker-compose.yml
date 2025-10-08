@@ -30,6 +30,4 @@ services:
       --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite
       --config /freqtrade/user_data/config.json
       --strategy MyFreqAIStrategy
-      # To enable FreqAI with custom config, uncomment the next line
-      # --freqai-config /freqtrade/user_data/freqai_config.json
-
+      --freqai-config /freqtrade/user_data/freqai_config.json
