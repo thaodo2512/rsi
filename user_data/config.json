@@ -56,11 +56,15 @@
     "backtest_period_days": 7,
     "live_retrain_hours": 168,
     "fit_live_predictions_candles": 300,
+    "purge_old_models": 2,
     "feature_parameters": {
       "include_timeframes": ["5m"],
+      "include_corr_pairlist": ["BTC/USDT", "ETH/USDT"],
       "indicator_periods_candles": [9, 14, 21],
       "label_period_candles": 12,
-      "principal_component_analysis": false
+      "include_shifted_candles": 2,
+      "principal_component_analysis": false,
+      "DI_threshold": 0.05
     },
     "model_training_parameters": {
       "learning_rate": 0.001,
