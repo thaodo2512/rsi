@@ -18,11 +18,22 @@ def load_config(path: Path) -> dict:
 
 
 def infer_data_path(exchange: str, timeframe: str, pair: str) -> Optional[Path]:
-    base = ROOT / "user_data" / "data" / exchange.lower() / "spot" / timeframe
+    """Return path to OHLCV file for a pair/timeframe.
+    Supports both legacy flat layout and nested spot/timeframe layout.
+    """
+    exch = exchange.lower()
     pair_key = pair.replace("/", "_")
+
+    # New-style nested path
+    nested = ROOT / "user_data" / "data" / exch / "spot" / timeframe
+    # Legacy flat path
+    flat = ROOT / "user_data" / "data" / exch
+
     candidates = [
-        base / f"{pair_key}-{timeframe}.json",
-        base / f"{pair_key}-{timeframe}.json.gz",
+        nested / f"{pair_key}-{timeframe}.json",
+        nested / f"{pair_key}-{timeframe}.json.gz",
+        flat / f"{pair_key}-{timeframe}.json",
+        flat / f"{pair_key}-{timeframe}.json.gz",
     ]
     for c in candidates:
         if c.exists():
@@ -115,7 +126,7 @@ def main() -> int:
     for pair in pairs:
         path = infer_data_path(exch, timeframe, pair)
         if not path:
-            print(f"[MISSING] {pair}: no file under user_data/data/{exch}/spot/{timeframe}/")
+            print(f"[MISSING] {pair}: no file found under user_data/data/{exch}/(spot/{timeframe}|.)")
             ok = False
             continue
         rng = read_ts_range(path)
@@ -151,4 +162,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
