@@ -11,6 +11,15 @@ user_data/data/
 !user_data/data/*.example.csv
 user_data/trades*.sqlite
 user_data/*.log
+user_data/freqaimodels/
+user_data/freqai*/
+user_data/models/
+user_data/.cache/
+
+# Python caches
+**/__pycache__/
+.pytest_cache/
+.mypy_cache/
 
 # OS / editor
 .DS_Store
