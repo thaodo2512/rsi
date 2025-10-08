@@ -56,7 +56,10 @@ def read_ts_range(path: Path) -> Optional[Tuple[dt.datetime, dt.datetime]]:
             # compute min/max of timestamp (ms)
             tmin = min(int(r[0]) for r in rows)
             tmax = max(int(r[0]) for r in rows)
-            return (dt.datetime.utcfromtimestamp(tmin / 1000), dt.datetime.utcfromtimestamp(tmax / 1000))
+            return (
+                dt.datetime.fromtimestamp(tmin / 1000, dt.timezone.utc),
+                dt.datetime.fromtimestamp(tmax / 1000, dt.timezone.utc),
+            )
         # Fallback: list of dicts with possible keys
         if isinstance(rows[0], dict):
             # Try ms fields
@@ -77,7 +80,7 @@ def read_ts_range(path: Path) -> Optional[Tuple[dt.datetime, dt.datetime]]:
                         epoch = epoch / 1e9
                     elif epoch > 10_000_000:  # ms
                         epoch = epoch / 1e3
-                    tcur = dt.datetime.utcfromtimestamp(epoch)
+                    tcur = dt.datetime.fromtimestamp(epoch, dt.timezone.utc)
                 else:
                     # assume ISO string
                     try:
@@ -102,8 +105,25 @@ def read_ts_range(path: Path) -> Optional[Tuple[dt.datetime, dt.datetime]]:
         return None
 
 
-def parse_date(s: str) -> dt.datetime:
-    return dt.datetime.strptime(s, "%Y-%m-%d")
+def parse_date_utc(s: str) -> dt.datetime:
+    # Interpret input date as UTC midnight
+    return dt.datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=dt.timezone.utc)
+
+
+def timeframe_to_timedelta(tf: str) -> dt.timedelta:
+    tf = tf.strip().lower()
+    unit = tf[-1]
+    try:
+        val = int(tf[:-1])
+    except Exception:
+        raise ValueError(f"Invalid timeframe: {tf}")
+    if unit == 'm':
+        return dt.timedelta(minutes=val)
+    if unit == 'h':
+        return dt.timedelta(hours=val)
+    if unit == 'd':
+        return dt.timedelta(days=val)
+    raise ValueError(f"Unsupported timeframe unit in: {tf}")
 
 
 def main() -> int:
@@ -112,6 +132,12 @@ def main() -> int:
     ap.add_argument("--end", required=True, help="Backtest end date YYYY-MM-DD")
     ap.add_argument("--timeframe", default=None, help="Timeframe (default: read from config.json)")
     ap.add_argument("--pairs", default=None, help="Space-separated pairs (default: config whitelist)")
+    ap.add_argument(
+        "--late-policy",
+        choices=["day", "frame", "end"],
+        default="frame",
+        help="Late coverage policy: 'day' requires >= end+1day, 'frame' requires >= end+timeframe (default), 'end' requires >= end",
+    )
     args = ap.parse_args()
 
     cfg = load_config(CONFIG)
@@ -121,10 +147,20 @@ def main() -> int:
     train_days = int(cfg.get("freqai", {}).get("train_period_days", 365))
     pairs = args.pairs.split() if args.pairs else cfg.get("exchange", {}).get("pair_whitelist", [])
 
-    start = parse_date(args.start)
-    end = parse_date(args.end)
+    start = parse_date_utc(args.start)
+    end = parse_date_utc(args.end)
     earliest_needed = start - dt.timedelta(days=train_days)
-    need_latest = end + dt.timedelta(days=1)  # Cover full end day
+    tf_delta = timeframe_to_timedelta(timeframe)
+    if args.late_policy == "day":
+        need_latest = end + dt.timedelta(days=1)
+    elif args.late_policy == "frame":
+        need_latest = end + tf_delta
+    else:  # 'end'
+        need_latest = end
+    # Don't require future data
+    now_utc = dt.datetime.now(dt.timezone.utc)
+    if need_latest > now_utc:
+        need_latest = now_utc
 
     print(f"Config: timeframe={timeframe}, exchange={exch}, train_period_days={train_days}")
     print(f"Backtest: start={start.date()} end={end.date()} (need data from <= {earliest_needed.date()} to >= {need_latest.date()})")
@@ -170,4 +206,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
