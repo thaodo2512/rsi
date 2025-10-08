@@ -168,6 +168,13 @@ class MyFreqAIStrategy(IStrategy):
         if "volume" in dataframe.columns:
             dataframe["vol_sma50"] = dataframe["volume"].rolling(50).mean()
 
+        # Attempt FreqAI pipeline (safe no-op if disabled or unavailable)
+        try:
+            if getattr(self, "freqai", None):
+                dataframe = self.freqai.start(dataframe, metadata, self)
+        except Exception as e:  # pragma: no cover
+            logger.warning("FreqAI integration skipped due to error: %s", e)
+
         return dataframe
 
     def populate_entry_trend(self, dataframe: pd.DataFrame, metadata: Dict) -> pd.DataFrame:
@@ -187,8 +194,48 @@ class MyFreqAIStrategy(IStrategy):
         if "sentiment_normalized" in dataframe.columns and float(self.sentiment_floor.value) > 0.0:
             cond &= dataframe["sentiment_normalized"] >= float(self.sentiment_floor.value)
 
+        # Optional FreqAI gating if predictions exist
+        if "do_predict" in dataframe.columns:
+            cond &= dataframe["do_predict"] == 1
+        if "DI_values" in dataframe.columns:
+            cond &= dataframe["DI_values"].fillna(1.0) < 0.05
+
         dataframe.loc[cond, ["enter_long"]] = 1
 
+        return dataframe
+
+    # ---------- FreqAI hooks ----------
+    def set_freqai_targets(self, dataframe: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        """Define regression target as forward return over N candles (label_period_candles)."""
+        try:
+            n = int(self.freqai_info["feature_parameters"].get("label_period_candles", 12))
+        except Exception:
+            n = 12
+        future_close = dataframe["close"].shift(-n)
+        dataframe["&-return"] = (future_close / dataframe["close"]) - 1.0
+        return dataframe
+
+    def feature_engineering_standard(self, dataframe: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        """Provide core features for FreqAI. Columns must be prefixed with '%-'."""
+        # Ensure base indicators exist
+        if "rsi" not in dataframe.columns and ta is not None:
+            dataframe["rsi"] = ta.RSI(dataframe, timeperiod=int(self.rsi_period.value))
+        if "willr" not in dataframe.columns and ta is not None:
+            dataframe["willr"] = ta.WILLR(dataframe, timeperiod=int(self.willr_period.value))
+        if "adx" not in dataframe.columns and ta is not None:
+            dataframe["adx"] = ta.ADX(dataframe)
+
+        dataframe["%-rsi"] = dataframe.get("rsi")
+        dataframe["%-willr"] = dataframe.get("willr")
+        dataframe["%-adx"] = dataframe.get("adx")
+        if "fear_greed" in dataframe.columns:
+            dataframe["%-fear_greed"] = dataframe["fear_greed"].fillna(0.5)
+        if "sentiment_normalized" in dataframe.columns:
+            dataframe["%-sentiment"] = dataframe["sentiment_normalized"].fillna(0.5)
+        if "volume" in dataframe.columns:
+            if "vol_sma50" not in dataframe.columns:
+                dataframe["vol_sma50"] = dataframe["volume"].rolling(50).mean()
+            dataframe["%-vol_above_sma50"] = (dataframe["volume"] > dataframe["vol_sma50"].fillna(0)).astype(float)
         return dataframe
 
     # ---------- Helpers ----------
